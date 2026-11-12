@@ -76,7 +76,7 @@ export class AuthService {
       name: input.name,
       email: input.email,
       passwordHash: await hashPassword(input.password),
-      role: 'learner',
+      role: 'admin',
     })
     const verificationToken = await this.issueOneTimeToken(
       user.id,

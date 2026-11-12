@@ -43,7 +43,8 @@ app.get('/api/health', (_request, response) =>
     uptime_seconds: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
   }),
-)
+ )
+ 
 app.get(
   '/api/health/database',
   asyncHandler(async (_request, response) => {
