@@ -21,9 +21,13 @@
     "db:seed": "sequelize-cli db:seed:all",
     "db:reset": "sequelize-cli db:drop && sequelize-cli db:create && sequelize-cli db:migrate && sequelize-cli db:seed:all",
     "auth:cleanup": "node dist/scripts/cleanup-auth-data.js",
-    "auth:cleanup:dev": "tsx scripts/cleanup-auth-data.ts"
+    "auth:cleanup:dev": "tsx scripts/cleanup-auth-data.ts",
+    "db:create-migration": "sequelize-cli migration:generate --name",
+    "db:create-seed": "sequelize-cli seed:generate --name"
   },
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
