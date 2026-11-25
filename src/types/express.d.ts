@@ -11,6 +11,7 @@ declare global {
       }
       auth?: {
         userId: string
+        name: string
         email: string
         role: UserRole
         sessionId: string

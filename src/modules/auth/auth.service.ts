@@ -88,8 +88,8 @@ export class AuthService {
     await this.mail.sendEmailVerification(user, verificationToken)
     const tokens = await this.issueTokens(user, context)
     await this.recordAudit('auth.registered', 'success', user.id, user.email, context)
-
-    return {
+    
+      return {
       user: user.toSafeJSON(),
       ...tokens,
       verification_required: true,
@@ -97,7 +97,8 @@ export class AuthService {
       ...(env.AUTH_EXPOSE_DEBUG_TOKENS
         ? { debug: { verification_token: verificationToken } }
         : {}),
-    }
+    };
+    
   }
 
   async login(input: LoginInput, context: SessionContext) {

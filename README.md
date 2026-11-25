@@ -25,6 +25,7 @@ API REST d’authentification et de gestion de comptes destinée à servir de so
 - Consultation, révocation et fermeture des sessions.
 - Rôles `admin`, `teacher` et `learner`, avec contrôle d’accès par rôle.
 - Administration des utilisateurs, pagination, filtres et consultation de leurs événements de sécurité.
+- Gestion des cours, modules, leçons et inscriptions ; voir les guides détaillés de l’[API des cours](./docs/courses-api.md) et de l’[API des inscriptions](./docs/enrollments-api.md).
 - Limitation de débit, journalisation structurée, identifiant de requête et documentation OpenAPI.
 
 ## Technologies et dépendances
@@ -78,7 +79,7 @@ npm run dev
 
 L’API écoute par défaut sur `http://localhost:3000`. La documentation interactive est disponible sur `http://localhost:3000/api/docs`.
 
-Le seeder ajoute les comptes `admin@cours-alygne.test`, `teacher@cours-alygne.test` et `learner@cours-alygne.test`, avec le mot de passe de démonstration `Password123!`. Ces identifiants sont exclusivement destinés au développement local : ne les utilisez pas dans un environnement partagé ou en production.
+Le seeder ajoute les comptes `admin@cours-alygne.test`, `teacher@cours-alygne.test` et quatre comptes apprenants, avec le mot de passe de démonstration `Password123!`. Ces identifiants sont exclusivement destinés au développement local : ne les utilisez pas dans un environnement partagé ou en production.
 
 ## Configuration
 
@@ -174,8 +175,8 @@ Les services acceptent des repositories et des services externes par injection d
 ### Base de données
 
 - `src/database/sequelize.ts` configure Sequelize pour MySQL, le pool de connexions, les logs SQL et l’option TLS.
-- `src/database/models.ts` initialise une seule fois les modèles et leurs associations : utilisateur, sessions de renouvellement, jetons à usage unique et événements d’audit.
-- Les modèles Sequelize sont dans `src/modules/users/` et `src/modules/auth/`. Ils utilisent des UUID, des noms de colonnes `snake_case` et des timestamps.
+- `src/database/models.ts` initialise une seule fois les modèles et leurs associations : utilisateur, cours, modules, leçons, inscriptions, progression et modèles d’authentification.
+- Les modèles Sequelize sont dans `src/modules/`. Ils utilisent des UUID, des noms de colonnes `snake_case` et des timestamps.
 - Les migrations SQL versionnées sont à la racine dans `migrations/` ; elles constituent la source de création du schéma, pas `sequelize.sync()`.
 
 ### Middlewares Express
@@ -213,6 +214,13 @@ Les services acceptent des repositories et des services externes par injection d
 - `user.repository.ts` construit les requêtes Sequelize, normalise les emails et protège les changements de rôle/statut du dernier administrateur actif avec des transactions et des verrous en base.
 - `user.model.ts` définit les rôles, champs du compte et `toSafeJSON()`, qui exclut notamment le hash du mot de passe.
 - `user.schema.ts` valide les filtres, la pagination, les identifiants UUID et les formulaires de gestion de comptes.
+
+### Module `inscription`
+
+- `inscription.route.ts` expose les routes d’auto-inscription, de gestion des inscrits et de progression, protégées par authentification, vérification email et rôles.
+- `inscription.service.ts` vérifie le cours publié, l’état/rôle de l’apprenant, les doublons et la capacité dans une transaction. Il limite aussi la progression aux leçons du cours inscrit.
+- `inscription-progress.repository.ts` enregistre une progression entière de `0` à `100` par inscription et par leçon.
+- Le [guide de l’API des inscriptions](./docs/enrollments-api.md) documente les accès, règles et exemples `curl`.
 
 ### Module `demo`
 
@@ -279,6 +287,31 @@ Toutes les routes sont préfixées par `/api`. Une requête authentifiée doit f
 | `GET` | `/api/demo/admin` | Admin | Démonstration du contrôle par rôle. |
 | `GET` | `/api/demo/teaching-team` | Admin ou enseignant | Démonstration d’une permission multi-rôles. |
 
+### Cours, modules et leçons
+
+| Méthode | Route | Description |
+|---|---|---|
+| `GET` | `/api/courses` | Liste les cours. |
+| `POST` | `/api/courses` | Crée un cours brouillon. |
+| `GET` | `/api/courses/:id` | Consulte un cours. |
+| `PATCH` | `/api/courses/:id` | Modifie un cours. |
+| `DELETE` | `/api/courses/:id` | Supprime un brouillon uniquement. |
+| `POST` | `/api/courses/:id/publish` | Publie un cours. |
+| `POST` | `/api/courses/:id/modules` | Ajoute un module au cours. |
+| `POST` | `/api/courses/modules/:moduleId/lessons` | Ajoute une leçon à un module. |
+| `POST` | `/api/courses/:courseId/enroll` | Inscrit l’apprenant authentifié à un cours publié. |
+| `GET` | `/api/courses/:courseId/enrollments` | Liste les inscrits d’un cours (enseignant/admin). |
+| `POST` | `/api/courses/:courseId/enrollments` | Inscrit un apprenant (enseignant/admin). |
+| `GET` | `/api/enrollments/me` | Liste les inscriptions de l’utilisateur courant. |
+| `PUT` | `/api/enrollments/:enrollmentId/lessons/:lessonId/progress` | Met à jour sa progression de leçon (`0–100`). |
+| `POST` | `/api/courses/:courseId/enroll` | Inscrit l’apprenant authentifié à un cours publié. |
+| `GET` | `/api/courses/:courseId/enrollments` | Liste les inscrits d’un cours (enseignant/admin). |
+| `POST` | `/api/courses/:courseId/enrollments` | Inscrit un apprenant (enseignant/admin). |
+| `GET` | `/api/enrollments/me` | Liste les inscriptions de l’utilisateur courant. |
+| `PUT` | `/api/enrollments/:enrollmentId/lessons/:lessonId/progress` | Met à jour sa progression de leçon (`0–100`). |
+
+Les exemples `curl`, les validations, les règles métier et les réponses sont détaillés dans les guides de l’[API des cours](./docs/courses-api.md) et de l’[API des inscriptions](./docs/enrollments-api.md).
+
 Le contrat complet, notamment les schémas de requête/réponse, est dans `/api/docs`.
 
 ## Base de données et migrations
@@ -289,6 +322,9 @@ Les migrations créent les tables suivantes :
 - `refresh_tokens` : empreintes des refresh tokens, durée de validité, révocation, chaîne de rotation et métadonnées de session.
 - `one_time_tokens` : jetons de vérification/reset hachés, cible, expiration et consommation.
 - `auth_audit_events` : événements de sécurité, statut et métadonnées.
+- `cours`, `modules` et `lecons` : contenu pédagogique.
+- `inscriptions` : liens uniques entre cours et apprenants.
+- `inscription_progressions` : progression `0–100` pour chaque leçon suivie dans une inscription.
 
 Les relations utilisateur/jetons sont supprimées en cascade quand un compte est supprimé ; les événements d’audit conservent leur enregistrement avec `user_id` nul. Des index couvrent notamment les emails, empreintes de jetons, sessions, dates d’expiration et consultations d’audit.
 

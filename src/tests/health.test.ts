@@ -18,6 +18,7 @@ describe('socle HTTP', () => {
       .expect(200)
 
     expect(response.headers['x-request-id']).toBe(requestId)
+    expect(response.headers['x-request-id-generated']).toBe('false')
   })
 
   it('remplace un x-request-id non UUID', async () => {
@@ -27,6 +28,7 @@ describe('socle HTTP', () => {
       .expect(200)
 
     expect(response.headers['x-request-id']).not.toBe('valeur-libre-invalide')
+    expect(response.headers['x-request-id-generated']).toBe('true')
     expect(response.headers['x-request-id']).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     )

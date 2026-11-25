@@ -30,6 +30,7 @@ export const openApiDocument = {
     { name: 'Sessions' },
     { name: 'Users administration' },
     { name: 'Authorization demos' },
+    { name: 'Enrollments' },
   ],
   components: {
     securitySchemes: {
@@ -192,6 +193,16 @@ export const openApiDocument = {
             },
           },
         ],
+      },
+      EnrollLearnerInput: {
+        type: 'object',
+        required: ['userId'],
+        properties: { userId: { type: 'string', format: 'uuid' } },
+      },
+      LessonProgressInput: {
+        type: 'object',
+        required: ['progress'],
+        properties: { progress: { type: 'integer', minimum: 0, maximum: 100, example: 60 } },
       },
     },
   },
@@ -461,6 +472,85 @@ export const openApiDocument = {
         summary: 'Liste les derniers événements d’authentification',
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
         responses: { '200': { description: 'Événements' } },
+      },
+    },
+    '/courses/{courseId}/enroll': {
+      post: {
+        ...secured,
+        tags: ['Enrollments'],
+        operationId: 'autoEnroll',
+        summary: 'Inscrit l’apprenant authentifié à un cours',
+        parameters: [{ name: 'courseId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '201': { description: 'Inscription créée' },
+          '401': error('Authentification requise'),
+          '403': error('Apprenant actif et email vérifié requis'),
+          '404': error('Cours introuvable'),
+          '409': error('Cours fermé, complet ou apprenant déjà inscrit'),
+        },
+      },
+    },
+    '/courses/{courseId}/enrollments': {
+      get: {
+        ...secured,
+        tags: ['Enrollments'],
+        operationId: 'listCourseEnrollments',
+        summary: 'Liste les inscrits d’un cours',
+        parameters: [{ name: 'courseId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': { description: 'Inscriptions du cours' },
+          '401': error('Authentification requise'),
+          '403': error('Enseignant ou administrateur requis'),
+          '404': error('Cours introuvable'),
+        },
+      },
+      post: {
+        ...secured,
+        tags: ['Enrollments'],
+        operationId: 'enrollLearner',
+        summary: 'Inscrit un apprenant à un cours',
+        parameters: [{ name: 'courseId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: body('EnrollLearnerInput'),
+        responses: {
+          '201': { description: 'Inscription créée' },
+          '400': error('Identifiant invalide'),
+          '403': error('Enseignant ou administrateur requis, ou apprenant inactif'),
+          '404': error('Cours ou utilisateur introuvable'),
+          '409': error('Cours fermé, complet ou apprenant déjà inscrit'),
+        },
+      },
+    },
+    '/enrollments/me': {
+      get: {
+        ...secured,
+        tags: ['Enrollments'],
+        operationId: 'listMyEnrollments',
+        summary: 'Liste les inscriptions de l’utilisateur authentifié',
+        responses: {
+          '200': { description: 'Inscriptions personnelles' },
+          '401': error('Authentification requise'),
+          '403': error('Email vérifié requis'),
+        },
+      },
+    },
+    '/enrollments/{enrollmentId}/lessons/{lessonId}/progress': {
+      put: {
+        ...secured,
+        tags: ['Enrollments'],
+        operationId: 'updateLessonProgress',
+        summary: 'Crée ou remplace la progression d’une leçon (0 à 100)',
+        parameters: [
+          { name: 'enrollmentId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'lessonId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        requestBody: body('LessonProgressInput'),
+        responses: {
+          '200': { description: 'Progression mise à jour' },
+          '400': error('Progression ou identifiant invalide'),
+          '401': error('Authentification requise'),
+          '403': error('Apprenant propriétaire de l’inscription requis'),
+          '404': error('Inscription, leçon ou cours introuvable'),
+        },
       },
     },
     '/demo/authenticated': {

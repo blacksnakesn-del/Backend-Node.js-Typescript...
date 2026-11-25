@@ -101,6 +101,7 @@ describe('createAuthenticate', () => {
 
     expect(response.body).toMatchObject({
       userId: context.userId,
+      name: 'Awa Ndiaye',
       email: 'awa@example.test',
       role: 'teacher',
       sessionId: context.sessionId,
